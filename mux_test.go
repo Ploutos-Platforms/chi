@@ -391,6 +391,25 @@ func TestMuxNestedNotFound(t *testing.T) {
 	}
 }
 
+func TestStaticRouteMethodNotAllowedOverParam(t *testing.T) {
+	r := NewRouter()
+	r.StrictRouting(true)
+	r.Get("/users/me", func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("me")) })
+	r.Put("/users/{id}", func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("param:" + URLParam(r, "id"))) })
+	ts := httptest.NewServer(r)
+	defer ts.Close()
+	resp, body := testRequest(t, ts, "PUT", "/users/me", nil)
+	if resp.StatusCode != 405 || body == "param:me" {
+		t.Fatalf("expected 405 for PUT /users/me, got %d %q", resp.StatusCode, body)
+	}
+	if _, body := testRequest(t, ts, "GET", "/users/me", nil); body != "me" {
+		t.Fatalf("expected me, got %q", body)
+	}
+	if _, body := testRequest(t, ts, "PUT", "/users/123", nil); body != "param:123" {
+		t.Fatalf("expected param:123, got %q", body)
+	}
+}
+
 func TestMethodNotAllowed(t *testing.T) {
 	r := NewRouter()
 

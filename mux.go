@@ -29,6 +29,8 @@ type Mux struct {
 	// Custom method not allowed handler
 	methodNotAllowedHandler http.HandlerFunc
 
+	strictRouting bool
+
 	// A reference to the parent mux used by subrouters when mounting
 	// to a parent mux
 	parent *Mux
@@ -46,6 +48,9 @@ type Mux struct {
 	// is registered as an inline group inside another mux.
 	inline bool
 }
+
+// StrictRouting enables opt-in strict method handling.
+func (mx *Mux) StrictRouting(v bool) { mx.strictRouting = v }
 
 // NewMux returns a newly initialized Mux object that implements the Router
 // interface.
@@ -481,6 +486,10 @@ func (mx *Mux) routeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Find the route
 	if _, _, h := mx.tree.FindRoute(rctx, method, routePath); h != nil {
+		if mx.strictRouting && rctx.methodNotAllowed {
+			mx.MethodNotAllowedHandler(rctx.methodsAllowed...).ServeHTTP(w, r)
+			return
+		}
 		// Set http.Request path values from our request context
 		for i, key := range rctx.URLParams.Keys {
 			value := rctx.URLParams.Values[i]
